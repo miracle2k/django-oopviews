@@ -6,7 +6,7 @@ alternative::
     from django_oopviews import create_view, BaseView
 
     class View1(BaseView):
-        def __init__(self, request, *args, **kwargs):
+        def __before__(self, request, *args, **kwargs):
             # Here you have your common code
             self.my_variable = 1
         def __call__(self, request, *args, **kwargs):
@@ -20,7 +20,7 @@ alternative::
     view1 = create_view(View1)
     view2 = create_view(View2)
 
-In this example, the code in ``View1.__init__`` is shared between View1 and
+In this example, the code in ``View1.__before__`` is shared between View1 and
 View2, so you don't need to write it again.
 
 If you want to share some HttpResponse post-processing, implement the
