@@ -31,7 +31,7 @@ For more details check out this `blog post`_
 .. _blog post: http://zerokspot.com/weblog/1037/
 """
 
-__all__ = ('create_view', 'BaseView', )
+__all__ = ('create_view', 'View')
 
 def create_view(klass):
     """
@@ -81,3 +81,5 @@ class BaseView(object):
         this method is for you.
         """
         return response
+
+View = BaseView
