@@ -6,3 +6,5 @@ def get_version():
         v = "%s%s%d" % (v, VERSION[3], VERSION[4])
     return v
 
+
+from base import *
