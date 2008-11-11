@@ -33,6 +33,7 @@ For more details check out this `blog post`_
 
 __all__ = ('create_view', 'View')
 
+
 def create_view(klass):
     """
     This is the generator function for your view. Simply pass it the class
@@ -40,32 +41,33 @@ def create_view(klass):
     duck-type-compatible) and it will give you a function that you can
     add to your urlconf.
     """
-    def _func(request, *args, **kwargs):
+    view_instance = klass()
+    def _func(*args, **kwargs):
         """
-        Constructed function that actually creates and executes your view
-        instance.
+        Constructed function that actually executes your view instance.
         """
-        view_instance = klass(request, *args, **kwargs)
-        response = view_instance(request, *args, **kwargs)
+        before = getattr(view_instance, '__before__', None)
         after = getattr(view_instance, '__after__', None)
+        if before is not None:
+            args = list(args)
+            response = before(args, kwargs)
+            if response:
+                return response
+            args = tuple(args)
+        response = view_instance(*args, **kwargs)
         if after is None:
             return response
         else:
-            return view_instance.__after__(response)
+            return after(response)
     setattr(_func, '_class', klass)
     return _func
+
 
 class BaseView(object):
     """
     The Base-class for OOPViews. Inherit it and overwrite the __init__,
-    __call__ and/or __after__ methods.
+    __call__ and/or __after__ and __before__ methods.
     """
-
-    def __init__(self, request, *args, **kwargs):
-        """
-        In the constructor you can easily aggregate common functinality.
-        """
-        pass
 
     def __call__(self, request, *args, **kwargs):
         """
