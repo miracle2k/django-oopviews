@@ -74,12 +74,4 @@ class BaseView(object):
         """
         raise RuntimeError, "You have to override BaseView's __call__ method"
 
-    def __after__(self, response):
-        """
-        If you want to share some response processing between multiple views
-        without using a middleware and filter the affected views there,
-        this method is for you.
-        """
-        return response
-
 View = BaseView
