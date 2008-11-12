@@ -34,6 +34,22 @@ For more details check out this `blog post`_
 __all__ = ('create_view', 'View')
 
 
+class BaseView(object):
+    """
+    The Base-class for OOPViews. Inherit it and overwrite the __init__,
+    __call__ and/or __after__ and __before__ methods.
+    """
+
+    def __call__(self, request, *args, **kwargs):
+        """
+        This is the method where you want to put the part of your code, that
+        is absolutely view-specific.
+        """
+        raise RuntimeError, "You have to override BaseView's __call__ method"
+
+View = BaseView
+
+
 class InvocationProxyBase(object):
     """Used as a base class for all the classes created by the
     ``InvocationProxyMaker`` metaclass.
@@ -81,15 +97,17 @@ class InvocationProxyMaker(type):
             if attr_name.startswith('_') and not attr_name in ('__call__',):
                 continue
             attr = getattr(view_instance, attr_name)
-            if not callable(attr):
-                continue
 
-            def make_wrapped(func):
-                def wrapped(self, *args, **kwargs):
-                    # ``_call_view`` is expected to be defined by the bases
-                    return self._call_view(func, args, kwargs)
-                return wrapped
-            attrs[attr_name] = make_wrapped(attr)
+            if isinstance(attr, type) and issubclass(attr, BaseView):
+                attrs[attr_name] = cls.make(attr)
+
+            elif callable(attr):
+                def make_wrapped(func):
+                    def wrapped(self, *args, **kwargs):
+                        # ``_call_view`` is expected to be defined by the bases
+                        return self._call_view(func, args, kwargs)
+                    return wrapped
+                attrs[attr_name] = make_wrapped(attr)
 
         result = type(name, bases, attrs)
         setattr(result, '_instance', view_instance)
@@ -132,19 +150,3 @@ class InvocationProxyMaker(type):
         return dispatcher()
 
 create_view = InvocationProxyMaker.make
-
-
-class BaseView(object):
-    """
-    The Base-class for OOPViews. Inherit it and overwrite the __init__,
-    __call__ and/or __after__ and __before__ methods.
-    """
-
-    def __call__(self, request, *args, **kwargs):
-        """
-        This is the method where you want to put the part of your code, that
-        is absolutely view-specific.
-        """
-        raise RuntimeError, "You have to override BaseView's __call__ method"
-
-View = BaseView
