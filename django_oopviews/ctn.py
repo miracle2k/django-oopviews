@@ -6,7 +6,7 @@ In some situations it comes in handy, to do some content type negotiation
 to really provide an optimized view for the user depending on what a user's
 application supports (say WML or HTML or XML over HTML). HTTP/1.1 handles
 this using the "Accept"-request header to give the user the option, to say
-what kind of content type she'd prefer or give a list of content types 
+what kind of content type she'd prefer or give a list of content types
 prioritized with a value between 0 and 1.
 
 This abstract view class should demonstrate, how you can easily handle such
@@ -15,11 +15,11 @@ Simply use the ``__call__`` method as dispatcher for content-type-specific
 methods.
 
 To use this code, simply inherit the basic implementation and then specify
-your content-type-specific methods and register them in the 
+your content-type-specific methods and register them in the
 ``ctn_accept_binding``-dictionary::
-    
+
     from django.http import HttpResponse
-    from django_oopview import ctn
+    from django_oopviews import ctn
 
     class TestView(ctn.AbstractCTNView):
         ctn_accept_binding = {
@@ -31,10 +31,10 @@ your content-type-specific methods and register them in the
         def html(self, request, *args, **kwargs):
             return HttpResponse("Hello", mimetype='text/html')
 
-The ``ctn_accept_binding``-dictionary not only allows you to bind a method to a 
+The ``ctn_accept_binding``-dictionary not only allows you to bind a method to a
 content-type, but if you set a value to a tuple instead of just a string, it
 will take the first element of that tuple as a priority value similar to the
-one used in the "Accept"-handling. This way, you can prioritize methods for 
+one used in the "Accept"-handling. This way, you can prioritize methods for
 the case, that the user requests any type of a given family like for instance
 'text/\*'.
 """
@@ -60,7 +60,7 @@ def provides_priority_sorting(a,b):
 
 def accept_priority_sorting(a,b):
     """
-    Simple priority sorter that gives first of all generic handlers the 
+    Simple priority sorter that gives first of all generic handlers the
     lowest priority and gives more specific handlers by default a higher
     priority. Otherwise, the q-parameter specified in the HTTP/1.1 specs
     is used.
@@ -88,16 +88,17 @@ class HttpResponseNotAcceptable(HttpResponse):
 
 class AbstractCTNView(BaseView):
     ctn_accept_binding = {'*/*': 'default'}
-    
-    def __init__(self, request, *args, **kwargs):
+
+    def __init__(self):
         if (self.__class__ is AbstractCTNView):
             raise TypeError, "AbstractContentSelectView is an abstract class"
+
+    def __before__(self, args, kwargs):
         self._ctn_request_priorities = None
         self._ctn_provides_priorities = None
-        super(AbstractCTNView, self).__init__(request, *args, **kwargs)
-    
+
     def _ctn_build_provides_priorities(self):
-        
+
         if self._ctn_provides_priorities is not None:
             return self._ctn_provides_priorities
         providing = []
@@ -123,7 +124,7 @@ class AbstractCTNView(BaseView):
         accept = request.META.get('HTTP_ACCEPT', "*/*")
         # Accept is basically a list separated by "," with options coming
         # before the actual type and being separated by a ";" from it.
-        # For now, all this handles is the q-parameter which handles the 
+        # For now, all this handles is the q-parameter which handles the
         # priority of the type. If not set, this is set to 1
         types = []
         for accepted_type in accept.split(","):
@@ -146,7 +147,7 @@ class AbstractCTNView(BaseView):
             types.reverse()
         else:
             types.append(('*/*', 1))
-        self._ctn_request_priorities = types 
+        self._ctn_request_priorities = types
         return types
 
     def __call__(self, request, *args, **kwargs):
@@ -163,7 +164,7 @@ class AbstractCTNView(BaseView):
                 for binding in self._ctn_provides_priorities:
                     if binding[0].startswith(tfamily+'/'):
                         return getattr(self, binding[1][1])(request, *args, **kwargs)
-            else:                    
+            else:
                 for t in (type_, '%s/*'%(tfamily,)):
                     if t in self.ctn_accept_binding.keys():
                         if isinstance(self.ctn_accept_binding[t], tuple):
