@@ -6,7 +6,7 @@ alternative::
     from django_oopviews import create_view, BaseView
 
     class View1(BaseView):
-        def __before__(self, request, *args, **kwargs):
+        def __before__(self, request, args, kwargs):
             # Here you have your common code
             self.my_variable = 1
         def __call__(self, request, *args, **kwargs):
