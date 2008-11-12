@@ -125,7 +125,7 @@ class InvocationProxyMaker(type):
         Additional arguments given besides ``view_class`` will be passed
         on to the class constructor.
 
-        .. note:: Why is the manual ``create_view`` call necessary.
+        .. note:: Why the manual ``create_view`` call is necessary.
            After all, a metaclass could be used to make each ``BaseView``
            subclass directly return a usuable proxy object.
 
