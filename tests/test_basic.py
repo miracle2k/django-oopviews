@@ -1,4 +1,4 @@
-"""Test the view pre- and post processing hooks.
+"""Test the basic functionality in a non-inheritance scenario.
 """
 
 from django_oopviews import View, create_view
@@ -15,7 +15,7 @@ def test_init_called_on_creation():
         def __call__(self, *args, **kwargs):
             return self.count
     testview = create_view(TestView)
-    assert testview() == 1
+    assert testview._instance.count == 1   # also tests access to ._instance
     assert testview() == 1
 
 
@@ -27,8 +27,11 @@ def test_before_is_called():
             self.dummy = 42
         def __call__(self, *args, **kwargs):
             return self.dummy
+        def foo(self, *args, **kwargs):
+            return self.dummy * 2
     testview = create_view(TestView)
     assert testview() == 42
+    assert testview.foo() == 84
 
 
 def test_before_can_modify_args():
@@ -66,5 +69,20 @@ def test_after_is_called():
             return response * 2
         def __call__(self, *args, **kwargs):
             return 3
+        def foo(self, *args, **kwargs):
+            return 4
     testview = create_view(TestView)
     assert testview() == 6
+    assert testview.foo() == 8
+
+
+def test_proxy_what_attributes_are_wrapped():
+    """Private and non-callable attributes of a view are not wrapped.
+    """
+    class TestView(View):
+        foo = 1
+        def _bar(self, *args, **kwargs):
+            pass
+    testview = create_view(TestView)
+    assert not hasattr(testview, 'foo')
+    assert not hasattr(testview, '_bar')

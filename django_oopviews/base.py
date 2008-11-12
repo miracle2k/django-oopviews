@@ -34,33 +34,104 @@ For more details check out this `blog post`_
 __all__ = ('create_view', 'View')
 
 
-def create_view(klass):
+class InvocationProxyBase(object):
+    """Used as a base class for all the classes created by the
+    ``InvocationProxyMaker`` metaclass.
     """
-    This is the generator function for your view. Simply pass it the class
-    of your view implementation (ideally a subclass of BaseView or at least
-    duck-type-compatible) and it will give you a function that you can
-    add to your urlconf.
-    """
-    view_instance = klass()
-    def _func(*args, **kwargs):
+
+    def _call_view(self, func, args, kwargs):
+        """Used by the proxy whenever it needs to execute a view.
+
+        Makes sure the pre- and post-processing runs.
         """
-        Constructed function that actually executes your view instance.
-        """
-        before = getattr(view_instance, '__before__', None)
-        after = getattr(view_instance, '__after__', None)
-        if before is not None:
+        if self.__before__ is not None:
             args = list(args)
-            response = before(args, kwargs)
+            response = self.__before__(args, kwargs)
             if response:
                 return response
             args = tuple(args)
-        response = view_instance(*args, **kwargs)
-        if after is None:
+        response = func(*args, **kwargs)
+        if self.__after__ is None:
             return response
         else:
-            return after(response)
-    setattr(_func, '_class', klass)
-    return _func
+            return self.__after__(response)
+
+
+class InvocationProxyMaker(type):
+    """Metaclass that will create a proxy-class for a ``BaseView``
+    given by the user.
+
+    The invocation proxy will make sure that when the view methods are
+    invoked, they are wrapped inside our pre- and post-processing chain.
+
+    Works recursively, so nested ``View`` classes work as expected.
+    """
+
+    def __new__(cls, name, bases, attrs):
+        if not '__view__' in attrs:
+            raise RuntimeError('the __view__ attribute is required')
+        view_instance = attrs.pop('__view__')
+
+        # transfer the special before, after methods
+        attrs['__before__'] = getattr(view_instance, '__before__', None)
+        attrs['__after__'] = getattr(view_instance, '__after__', None)
+
+        # transfer wrapped versions of all non-private methods
+        for attr_name in dir(view_instance):
+            if attr_name.startswith('_') and not attr_name in ('__call__',):
+                continue
+            attr = getattr(view_instance, attr_name)
+            if not callable(attr):
+                continue
+
+            def make_wrapped(func):
+                def wrapped(self, *args, **kwargs):
+                    # ``_call_view`` is expected to be defined by the bases
+                    return self._call_view(func, args, kwargs)
+                return wrapped
+            attrs[attr_name] = make_wrapped(attr)
+
+        result = type(name, bases, attrs)
+        setattr(result, '_instance', view_instance)
+        return result
+
+    @classmethod
+    def make(cls, view_class, *args, **kwargs):
+        """Generator function that creates an invocation proxy for your
+        OOP view (a ``BaseView``-subclass).
+
+        You can then use the proxy or it's methods inside your urlconf,
+        and it will ensure that your view is pre- and post-processed
+        correctly.
+
+        Additional arguments given besides ``view_class`` will be passed
+        on to the class constructor.
+
+        .. note:: Why is the manual ``create_view`` call necessary.
+           After all, a metaclass could be used to make each ``BaseView``
+           subclass directly return a usuable proxy object.
+
+           However, this makes subclassing views somewhat more akward,
+           which now would have to work like this:
+
+                class view1(View):
+                    pass
+                # view1 is a proxy
+
+                class view2(view1.klass):
+                    pass
+
+           Subclassing ``view1`` directly would a) attempt to subclass
+           a proxy instance, and b) even if that worked super() calls
+           would go through pre-/post-processing for each inheritance
+           level, which is not how it's supposed to work.
+        """
+        dispatcher = cls("%sProxy" % view_class.__name__,
+                         (InvocationProxyBase,),
+                         {'__view__': view_class(*args, **kwargs)})
+        return dispatcher()
+
+create_view = InvocationProxyMaker.make
 
 
 class BaseView(object):
