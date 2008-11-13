@@ -29,6 +29,56 @@ If you want to share some HttpResponse post-processing, implement the
 For more details check out this `blog post`_
 
 .. _blog post: http://zerokspot.com/weblog/1037/
+
+TODO:
+    The way the __before__ hook works is possible not quite perfect.
+    It accepts the view arguments as two arg/kwargs objects,
+    rather than the actual arguments themselves, which, while it allows
+    those to be modified by the hook before the view call, it also makes
+    it harder to actually *access* and use them, since for example a
+    positional argument may be passed as a keyword. Someone implemeting
+    __before__ right now really has only one option: using a separate
+    function to let Python resolve the parameters:
+
+        def __before__(self, args, kwargs):
+            def _do(my, expected, args=None)
+                # ...
+            _do(*args, **kwargs)
+
+    So instead of the current __before__ behaviour, different approaches
+    includes:
+
+        - Using two different preprocessing hooks, an additional one
+          that accepts the arguements directly.
+
+                def __before__(self, args, kwargs):
+                    pass
+                def __prepare__(self, *args, **kwargs):
+                    pass
+
+        - Instead of using a possible __before__ return value as a
+          replacement for running the view itself, as we currently do,
+          __before__ could be allowed to return a 2-tuple (args, kwargs)
+          if it wants to change the parameters the view is called with,
+          instead of modifying the list/dict objects directly, as the
+          current approach requires. This would then allow both the
+          following use cases:
+
+                def __before__(self, *args, **kwargs):
+                    return (new_args, new_kwargs)
+
+                def __before__(self, my, expected, args=None)
+                    # ...
+
+          As an added benefit, modiyfing ``args`` would be much easier
+          when giving a replacement list is allowed. For example,
+          currently clearing the list requires a pop() loop.
+
+    __before__ should possibly also accept the view function to be called
+    as well, i.e.
+
+        def __beofore__(self, func, args, kwargs):
+            pass
 """
 
 __all__ = ('create_view', 'View')
