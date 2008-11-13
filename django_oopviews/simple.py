@@ -24,8 +24,6 @@ class SimpleView(View):
 
     Note that ``request`` is automatically shared and does not need
     to be specified in ``args``.
-
-    TODO: could be extended to support args being passed as kwargs.
     """
 
     args = []
@@ -36,7 +34,14 @@ class SimpleView(View):
         shared_kwargs = getattr(self, 'kwargs', {})
 
         for name in shared_args:
-            setattr(self, name, args.pop(0))
+            # positional args may be passed as keywords, but only allow
+            # that if all required positional arguments are filled, i.e.
+            # it is not possible to pass a positional argument out of
+            # order (the "got multiple values for keyword argument" error
+            # in normal Python).
+            if not args and name in kwargs:
+                setattr(self, name, kwargs.pop(name))
+            else:
+                setattr(self, name, args.pop(0))
         for name, default in shared_kwargs.items():
             setattr(self, name, kwargs.pop(name, default))
-
