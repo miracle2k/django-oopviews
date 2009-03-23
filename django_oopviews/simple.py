@@ -71,9 +71,15 @@ class SimpleView(View):
             else:
                 setattr(self, name, args.pop(0))
         for name, default in shared_kwargs.items():
-            setattr(self, name, kwargs.pop(name, default))
+            setattr(self, name,
+                # allow passing keywords as positional args
+                kwargs.pop(name, args.pop() if args else default))
 
-        self._base_context = self._init_context()
+        prepared = self._init_context()
+        if isinstance(prepared, dict):
+            self._base_context = prepared
+        else:
+            return prepared  # can be used to return a result from here
 
     def __after__(self, response):
         if not isinstance(response, tuple):
